@@ -5,8 +5,9 @@ set -o noglob
 blue=$(tput setaf 4);green=$(tput setaf 2);normal=$(tput sgr0);red=$(tput setaf 1);\
 yellow=$(tput setaf 3);white=$(tput setaf 7);bright=$(tput bold);pblue=$(tput setaf 5);underline=$(tput smul)
 
-#OUTPUT ALL THE MATILLION ACCOUNTS
+
 function accounts {
+    #OUTPUT ALL THE MATILLION ACCOUNTS
     #STORE ALL THE MATILLION ACCOUNTS FOR USE
     declare -A accounts=([matillion-testdrive]=260687743745 [matillion]=115603513764 [matillion-sa]=557249109363 [matillesque]=463109031811 [matillion-build]=944322052550 [matillion-security]=669471644793 [matillion-hackdayaws]=657243523731 [matillion-testaccount2]=807659967283 [matillion-saas]=709242615509 [matillion-partner-connect]=432242287494 [matillion-training]=296772720564 [matillion-telemetry-dev]=399739478574 [matillion-telemetry-prod]=316653126070 [matillion-product-team]=220149347750 [cactus-test]=458549032908 [cactus-prod]=669736005962 [matillion-interviews]=302616773776 [matillion-insights]=711669037257 [cactus-preprod]=635611444767 [matillion-account6]=224106197114 [matillion-cto]=232069713342 [matillion-docs]=727183365558 [matillion-test-resources]=491581776738 [metl-saas-dev]=031552568952 [matillion-infra-sandbox]=684929221969 [matillion-bi]=481732593939 [matillion-billing-dev]=709277075127 
     )
@@ -15,88 +16,110 @@ function accounts {
     for key in "${!accounts[@]}"; do printf "%25s\t%s\t%s\n" "$key" " => "  "${accounts[$key]}"; done
 }
 
-#JUST DRAWS A LINE :/
-function line { c=0
+
+function line { 
+    #JUST DRAWS A LINE :/
+    c=0
     while [ $c -lt $1 ] ; do
         echo -n "$2"
         c=$(( $c + 1 ))
     done ; echo ""
 }
 
-#Check and advise on JQ being installed and instruct if not
-command -v jq 1>/dev/null
-if [ "$?" -ne 0 ];
-        then
-		printf "%b\n" "\n${bright}${red}Please ensure you have JQ the lightweight and flexible command-line JSON processor${white}"
-		versionOfLinux=$(cat /etc/os-release | grep ID_LIKE | cut -d = -f 2 | tr '[:lower:]' '[:upper:]')
-		case "$versionOfLinux" in
-			"DEBIAN" | "UBUNTU") 	printf "\nInstall using sudo apt-get install jq\n\n" && exit ;;
+function advise {
+    printf "%b\n" "\n${bright}${red}          Please ensure you have AWS Creds Set up"
+    line 65 - ; line 65 -
+    printf "%b\n" "${bright}${green}This would generally be using ${bright}${blue}aws configure${bright}${green}. In our case please "
+    printf "%b\n" "${bright}${green}sign into the correct account you wish to copy from using ${underline}${yellow}vault${normal}${white}\n"
+    }
 
-			"FEDORA" )				printf "\nInstall using sudo dnf install jq\n\n" && exit;;
-			"OPENSUSE" )			printf "\nInstall using sudo zypper install jq\n\n" && exit ;;
-			"ARCH" )				printf "\nInstall using sudo pacman -Sy jq\n\n" && exit;;		
-			*) 						printf "\nPlease follow the instruction upon the\nhttps://stedolan.github.io/jq/download/\n\n" && exit ;;
-		esac
+function progCheck {
+    #Check and advise on JQ being installed and instruct if not
+    command -v jq 1>/dev/null
+    if [ "$?" -ne 0 ];
+            then
+    		printf "%b\n" "\n${bright}${red}Please ensure you have JQ the lightweight and flexible command-line JSON processor${white}"
+    		versionOfLinux=$(cat /etc/os-release | grep ID_LIKE | cut -d = -f 2 | tr '[:lower:]' '[:upper:]')
+    		case "$versionOfLinux" in
+    			"DEBIAN" | "UBUNTU") 	printf "\nInstall using sudo apt-get install jq\n\n" && exit ;;
 
-        fi
+    			"FEDORA" )				printf "\nInstall using sudo dnf install jq\n\n" && exit;;
+    			"OPENSUSE" )			printf "\nInstall using sudo zypper install jq\n\n" && exit ;;
+    			"ARCH" )				printf "\nInstall using sudo pacman -Sy jq\n\n" && exit;;		
+    			*) 						printf "\nPlease follow the instruction upon the\nhttps://stedolan.github.io/jq/download/\n\n" && exit ;;
+    		esac
 
-command -v aws 1>/dev/null
-if [ "$?" -ne 0 ];
-        then
-		printf "%b\n" "\n${bright}${red}Please ensure you have AWS Cli${white}"
-		printf "Navigate to"
-		printf "\nhttps://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html\n\n" && exit 
-        fi
+            fi
 
-#GET THE EC2S FROM THE ACCOUNT TO PRESENT FOR CHOICE
-aws ec2 describe-instances  --query "Reservations[*].Instances[*].{InstanceId:InstanceId,PublicIP:PublicIpAddress,PrivateIP:PrivateIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name}" --filters Name=instance-state-name,Values=stopped,running --output table
+    command -v aws 1>/dev/null
+    if [ "$?" -ne 0 ];
+            then
+    		printf "%b\n" "\n${bright}${red}Please ensure you have AWS Cli${white}"
+    		printf "Navigate to"
+    		printf "\nhttps://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html\n\n" && exit 
+            fi
+}
 
-#ASK FOR A INSTANCE SELECTION
-read -p 'Please input your chosen instance: '
-instance="$REPLY"
-#echo $instance
+function getStap {
+    #GET THE EC2S FROM THE ACCOUNT TO PRESENT FOR CHOICE
+    aws ec2 describe-instances  --query "Reservations[*].Instances[*].{InstanceId:InstanceId,PublicIP:PublicIpAddress,PrivateIP:PrivateIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name}" --filters Name=instance-state-name,Values=stopped,running --output table
 
-#GET THE VOLUMES FROM THE CHOSEN INSTANCE FOR CHOICE
-aws ec2 describe-instances --instance-id $instance --query "Reservations[*].Instances[*].BlockDeviceMappings[*].{device:DeviceName,Volume:Ebs.VolumeId}" --output table
+    #ASK FOR A INSTANCE SELECTION
+    read -p 'Please input your chosen instance: '
+    instance="$REPLY"
+    #echo $instance
 
-#ASK FOR A VOLUME CHOICE
-read -p 'Please input your chosen Volume: '
-volume="$REPLY"
-#echo $volume
+    #GET THE VOLUMES FROM THE CHOSEN INSTANCE FOR CHOICE
+    aws ec2 describe-instances --instance-id $instance --query "Reservations[*].Instances[*].BlockDeviceMappings[*].{device:DeviceName,Volume:Ebs.VolumeId}" --output table
 
-#CREATE A NAME FROM THE EXISTING INSTANCE NAME PLUS DATE, THIS FOR THE NEW SNAPSHOT DESCRIPTION
-name=$(aws ec2 describe-instances --instance-id $instance --query "Reservations[*].Instances[*].Tags[*].Value" --output text)-"COPY_TAKEN"-$(date +%d%m%y-%H%M)
+    #ASK FOR A VOLUME CHOICE
+    read -p 'Please input your chosen Volume: '
+    volume="$REPLY"
+    #echo $volume
 
-#CREATE THE NEW SNAP SHOT
-snapshot=$(aws ec2 create-snapshot --volume-id "$volume" --description "$name" | jq -r .Description,.VolumeId,.SnapshotId,.VolumeSize)
+    #CREATE A NAME FROM THE EXISTING INSTANCE NAME PLUS DATE, THIS FOR THE NEW SNAPSHOT DESCRIPTION
+    name=$(aws ec2 describe-instances --instance-id $instance --query "Reservations[*].Instances[*].Tags[*].Value" --output text)-"COPY_TAKEN"-$(date +%d%m%y-%H%M)
 
-#PRINT SNAPSHOT DETAILS
-printf "%20s%40s%35s%35s\n" "Description" "Volume ID" "SnapShop ID" "Volume Size"
-line $(( $( echo $snapshot | wc -c) +55 )) =
-for info in $snapshot; do 
-    printf "%1s%7s%7s" "$info"
-done ; echo ""
+    #CREATE THE NEW SNAP SHOT
+    snapshot=$(aws ec2 create-snapshot --volume-id "$volume" --description "$name" | jq -r .Description,.VolumeId,.SnapshotId,.VolumeSize)
 
-#ASK IF THE SNAPSHOT IS TO BE SHARED
-line 1 "" 
-read -p 'DO YOU WISH TO SHARE WITH A DIFFERENT ACCOUNT? (Y|N)'
-if [[ "$REPLY" == "yes" || "$REPLY" == "y" ]] ;
-then
-    accounts
-elif [[ "$REPLY" == "no" || "$REPLY" == "n" ]] ;
-then
-	echo "Thanks and bye"
-    exit
-else
-    echo 'Only yes or no' 
+    #PRINT SNAPSHOT DETAILS
+    printf "%20s%40s%35s%35s\n" "Description" "Volume ID" "SnapShop ID" "Volume Size"
+    line $(( $( echo $snapshot | wc -c) +55 )) =
+    for info in $snapshot; do 
+        printf "%1s%7s%7s" "$info"
+    done ; echo ""
+}
+
+function shareSnap {
+    #ASK IF THE SNAPSHOT IS TO BE SHARED
+    line 1 "" 
     read -p 'DO YOU WISH TO SHARE WITH A DIFFERENT ACCOUNT? (Y|N)'
-fi
+    if [[ "$REPLY" == "yes" || "$REPLY" == "y" ]] ;
+    then
+        accounts
+    elif [[ "$REPLY" == "no" || "$REPLY" == "n" ]] ;
+    then
+    	echo "Thanks and bye"
+        exit
+    else
+        echo 'Only yes or no' 
+        read -p 'DO YOU WISH TO SHARE WITH A DIFFERENT ACCOUNT? (Y|N)'
+    fi
+}
+
+clear
+progCheck
+advise
+getStap
+shareSnap
 
 #####    TODO    #####
 #ASK IS AN AMI IS TO BE MADE 
 #ASK IF THIS IS TO BE SHARED
 #WITH THE SNAPSHOT
 #CREATE AMIS
+#ADD COLOURED OUTPUT
 
 
 
