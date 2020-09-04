@@ -1,6 +1,10 @@
 #!/bin/bash
 set -o noglob
 
+#Set colours for indicative text output
+blue=$(tput setaf 4);green=$(tput setaf 2);normal=$(tput sgr0);red=$(tput setaf 1);\
+yellow=$(tput setaf 3);white=$(tput setaf 7);bright=$(tput bold);pblue=$(tput setaf 5);underline=$(tput smul)
+
 #OUTPUT ALL THE MATILLION ACCOUNTS
 function accounts {
     #STORE ALL THE MATILLION ACCOUNTS FOR USE
@@ -18,6 +22,31 @@ function line { c=0
         c=$(( $c + 1 ))
     done ; echo ""
 }
+
+#Check and advise on JQ being installed and instruct if not
+command -v jq 1>/dev/null
+if [ "$?" -ne 0 ];
+        then
+		printf "%b\n" "\n${bright}${red}Please ensure you have JQ the lightweight and flexible command-line JSON processor${white}"
+		versionOfLinux=$(cat /etc/os-release | grep ID_LIKE | cut -d = -f 2 | tr '[:lower:]' '[:upper:]')
+		case "$versionOfLinux" in
+			"DEBIAN" | "UBUNTU") 	printf "\nInstall using sudo apt-get install jq\n\n" && exit ;;
+
+			"FEDORA" )				printf "\nInstall using sudo dnf install jq\n\n" && exit;;
+			"OPENSUSE" )			printf "\nInstall using sudo zypper install jq\n\n" && exit ;;
+			"ARCH" )				printf "\nInstall using sudo pacman -Sy jq\n\n" && exit;;		
+			*) 						printf "\nPlease follow the instruction upon the\nhttps://stedolan.github.io/jq/download/\n\n" && exit ;;
+		esac
+
+        fi
+
+command -v aws 1>/dev/null
+if [ "$?" -ne 0 ];
+        then
+		printf "%b\n" "\n${bright}${red}Please ensure you have AWS Cli${white}"
+		printf "Navigate to"
+		printf "\nhttps://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html\n\n" && exit 
+        fi
 
 #GET THE EC2S FROM THE ACCOUNT TO PRESENT FOR CHOICE
 aws ec2 describe-instances  --query "Reservations[*].Instances[*].{InstanceId:InstanceId,PublicIP:PublicIpAddress,PrivateIP:PrivateIpAddress,Name:Tags[?Key=='Name']|[0].Value,Status:State.Name}" --filters Name=instance-state-name,Values=stopped,running --output table
